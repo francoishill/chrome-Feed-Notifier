@@ -1,0 +1,20 @@
+{
+    "name": "Feed Notifier",
+    "version": "0.1",
+    "manifest_version": 2,
+
+    "permissions": [
+        "*://*/*",
+        "notifications",
+        "tabs"
+    ],
+
+    "background": {
+        "scripts": [
+            "jquery-2.0.3.min.js",
+            "background.js"
+        ]
+    },
+
+    "options_page": "settings.html"
+}

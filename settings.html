@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Feed Notifier Settings</title>
+<script src="jquery-2.0.3.min.js"></script>
+<script src="settings.js"></script>
+<style>
+body {
+  font-family: "Lucida Grande", sans-serif;
+}
+textarea#urls {
+  width: 60%;
+  height: 10em;
+}
+</style>
+</head>
+<body>
+<h1>Feed Notifier Settings</h1>
+<section>
+  <h1>Feed URLs</h1>
+  <ul>
+    <li>One feed URL per line</li>
+    <li>Append &quot;#<var>title</var>&quot; to URL to specify custom feed title</li>
+  </ul>
+  <textarea id="urls" placeholder="http://www.example.com/feed#Optional Title"></textarea>
+</section>
+<button id="update">Update</button>
+</body>
+</html>
