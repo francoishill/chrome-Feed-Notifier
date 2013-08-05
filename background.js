@@ -1,27 +1,111 @@
 var Cache = {};
 
-function updateFeed (feed) {
-    $.ajax(feed.url, { dataType: 'xml' }).done(function (doc) {
-        var oldCache = Cache[feed.url];
-        var newCache = Cache[feed.url] = {};
+function Atom ($doc) {
+    this.$doc = $doc;
+}
+
+Atom.prototype = {
+    title: function () {
+        return this.$doc.find('title:first').text();
+    },
+    entries: function () {
+        return this.$doc.find('entry').map(function () {
+            return new Atom.Entry($(this));
+        });
+    }
+};
+
+Atom.Entry = function ($entry) {
+    this.$entry = $entry;
+};
+
+Atom.Entry.prototype = {
+    id: function () {
+        return this.$entry.find('id').text();
+    },
+    url: function () {
+        return this.$entry.find('link').attr('href');
+    },
+    title: function () {
+        return this.$entry.find('title').text();
+    },
+    image: function () {
+        return this.$entry.find('thumbnail').attr('url')
+    }
+};
+
+function RSS ($doc) {
+    this.$doc = $doc;
+}
+
+RSS.prototype = {
+    title: function () {
+        return this.$doc.find('channel title').text();
+    },
+    entries: function () {
+        return this.$doc.find('item').map(function () {
+            return new RSS.Entry($(this));
+        });
+    }
+};
+
+
+RSS.Entry = function ($entry) {
+    this.$entry = $entry;
+}
+
+RSS.Entry.prototype = {
+    id: function () {
+        var $guid = this.$entry.find('guid');
+        if ($guid.length > 0) {
+            return $guid.text();
+        } else {
+            return this.url() + ' ' + this.$entry.find('date').text();
+        }
+    },
+    url: function () {
+        return this.$entry.find('link').text();
+    },
+    title: function () {
+        return this.$entry.find('title').text();
+    },
+    image: function () {
+        return null;
+    }
+};
+
+function updateFeed (config) {
+    console.log('updateFeed', config);
+
+    $.ajax(config.url, { dataType: 'xml' }).done(function (doc) {
+        var oldCache = Cache[config.url];
+        var newCache = Cache[config.url] = {};
 
         var $doc = $(doc);
-        $doc.find('entry').each(function () {
-            var $entry = $(this);
+        var feedType = $doc.find('feed:root').length ? Atom
+                     : $doc.find('RDF:root').length  ? RSS
+                     : null;
 
-            var id = $entry.find('id').text();
+        if (!feedType) {
+            console.error('updateFeed', 'unknown feed type', doc);
+            return;
+        }
 
+        var feed = new feedType($doc);
+        $.each(feed.entries(), function () {
+            var entry = this;
+
+            var id = entry.id();
             newCache[id] = true;
             if (oldCache && oldCache[id]) return;
 
-            var url = $entry.find('link').attr('href');
             var notification = webkitNotifications.createNotification(
-                $entry.find('thumbnail').attr('url'),
-                feed.title || $doc.find('title:first').text(),
-                $entry.find('title').text()
+                entry.image(),
+                config.title || feed.title(),
+                entry.title()
             );
             notification.onclick = function () {
-                chrome.tabs.create({ url: url });
+                chrome.tabs.create({ url: entry.url() });
                 notification.close();
             };
             notification.onshow = function () {
@@ -30,15 +114,18 @@ function updateFeed (feed) {
 
             notification.show();
         });
-    }).fail(function (err) {
-        console.error('updateFeed', err);
+    }).fail(function () {
+        console.error('updateFeed', config);
     });
 }
 
 function updateFeeds () {
     var urls = (localStorage['urls'] || '').split(/\n/);
     $.each(urls, function () {
-        var feed = { url: this };
+        var url = ''+this;
+        if (this.length === 0) return;
+
+        var feed = { url: url };
         var m = feed.url.match(/^([^#]+)#(.+)$/);
         if (m) {
             feed.url   = m[1];
