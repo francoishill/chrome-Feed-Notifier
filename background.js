@@ -40,7 +40,7 @@ function RSS ($doc) {
 
 RSS.prototype = {
     title: function () {
-        return this.$doc.find('channel title').text();
+        return this.$doc.find('channel > title').text();
     },
     entries: function () {
         return this.$doc.find('item').map(function () {
@@ -60,7 +60,7 @@ RSS.Entry.prototype = {
         if ($guid.length > 0) {
             return $guid.text();
         } else {
-            return this.url() + ' ' + this.$entry.find('date').text();
+            return this.url() + ' ' + this.$entry.find('date, pubDate').text();
         }
     },
     url: function () {
@@ -84,6 +84,7 @@ function updateFeed (config) {
         var $doc = $(doc);
         var feedType = $doc.find('feed:root').length ? Atom
                      : $doc.find('RDF:root').length  ? RSS
+                     : $doc.find('rss:root').length  ? RSS
                      : null;
 
         if (!feedType) {
