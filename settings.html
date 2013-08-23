@@ -3,6 +3,7 @@
 <head>
 <title>Feed Notifier Settings</title>
 <script src="jquery-2.0.3.min.js"></script>
+<script src="lodash.min.js"></script>
 <script src="settings.js"></script>
 <style>
 body {
@@ -11,6 +12,30 @@ body {
 textarea#urls {
   width: 60%;
   height: 10em;
+}
+*[data-dialog] {
+  cursor: pointer;
+  text-decoration: underline;
+}
+*[data-dialog] {
+  opacity: 0.5;
+}
+.dialog {
+  position: fixed;
+  top: 30%;
+  left: 30%;
+  width: 40%;
+  background-color: white;
+  padding: 1em;
+  text-align: center;
+  z-index: 1;
+  display: none;
+}
+.dialog * {
+  font-size: 120%;
+}
+.dialog.active {
+  display: block;
 }
 </style>
 </head>
@@ -21,9 +46,18 @@ textarea#urls {
   <ul>
     <li>One feed URL per line</li>
     <li>Append &quot;#<var>title</var>&quot; to URL to specify custom feed title</li>
+    <li><span data-dialog="#import-opml-dialog" tabindex="0">Import OPML…</span></li>
   </ul>
   <textarea id="urls" placeholder="http://www.example.com/feed#Optional Title"></textarea>
 </section>
 <button id="update">Update</button>
+
+<section id="import-opml-dialog" class="dialog">
+  <form>
+    <input type="url" id="opml-url">
+    <button id="opml-import">Import OPML</button>
+  </form>
+</section>
+
 </body>
 </html>
