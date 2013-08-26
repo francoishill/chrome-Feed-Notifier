@@ -1,3 +1,8 @@
+jQuery.fn.contractWith = function (deferred, done) {
+    var _this = this;
+    deferred.done(function () { done.apply(_this, arguments) });
+};
+
 function loadOPML (url) {
     return $.ajax(url, {
         dataType: 'xml'
@@ -8,10 +13,16 @@ function loadOPML (url) {
     });
 }
 
-jQuery.fn.contractWith = function (deferred, done) {
-    var _this = this;
-    deferred.done(function () { done.apply(_this, arguments) });
-};
+function toast (message) {
+    var $toast = $('#toast');
+
+    if ($toast.length === 0) {
+        $toast = $('<div id="toast">').appendTo(document.body);
+    }
+
+    $toast.hide().text(message).fadeIn('fast');
+    setTimeout(function () { $toast.fadeOut('fast') }, 1000);
+}
 
 $(function () {
     $('textarea#urls').val(localStorage['urls']);
@@ -20,8 +31,34 @@ $(function () {
         localStorage['urls'] = $('textarea#urls').val();
     });
 
+    with ({ $dialog: $('#import-opml-dialog') }) {
+        var $form = $dialog.find('form');
+
+        $form.find('#opml-import').click(function () {
+            $form.find('input, button').attr('disabled', true);
+
+            var $opmlURL = $('#opml-url');
+            loadOPML($opmlURL.val()).done(function (urls) {
+                $('#urls').val(function (i, val) {
+                    return _.unique(val.split(/\n/).concat(urls)).join("\n");
+                });
+                $opmlURL.val('');
+                toast('OPML loaded');
+            }).fail(function () {
+                toast('Loading OPML failed');
+            }).always(function () {
+                $dialog.data('dialog:mode').resolve();
+                $form.find('input, button').attr('disabled', null);
+            });
+
+            return false;
+        });
+    }
+})
+
+$(function () {
     $('[data-dialog]').click(function () {
-        var mode = $.Deferred();
+        var dialogMode = $.Deferred();
 
         var $dialog = $($(this).attr('data-dialog'));
         var $background = $('<div>').css({
@@ -34,43 +71,19 @@ $(function () {
             opacity: 0.75,
         }).hide().appendTo(document.body);
 
-        $dialog.addClass('active')
-            .contractWith(mode, _.partial($.fn.removeClass, 'active'));
-
         $background.click(function () {
-            mode.resolve();
+            dialogMode.resolve();
         }).fadeIn('fast', $.proxy($dialog, 'trigger', 'dialog:show')).contractWith(
-            mode, _.partial($.fn.fadeOut, 'fast')
+            dialogMode, function () { this.fadeOut('fast', $.proxy(this, 'remove')) }
         );
 
-        $dialog.on('dialog:show', function () { $(this).find('input').focus() });
+        $dialog.on('dialog:show', function () {
+            $dialog.addClass('active')
+                .contractWith(dialogMode, _.partial($.fn.removeClass, 'active'));
 
-        $dialog.data('dialog:mode', mode);
-    });
-
-    $('#import-opml-dialog').each(function () {
-        var $dialog = $(this);
-
-        $dialog.find('form').each(function () {
-            var $form = $(this);
-
-            $form.find('#opml-import').click(function () {
-                $form.find('input, button').attr('disabled', true);
-
-                var $opmlURL = $('#opml-url');
-                loadOPML($opmlURL.val()).done(function (urls) {
-                    $('#urls').val(function (i, val) {
-                        return val.split(/\n/).concat(urls).join("\n");
-                    });
-                    $opmlURL.val('');
-                }).fail(function () {
-                    alert('Loading OPML failed');
-                }).always(function () {
-                    $dialog.data('dialog:mode').resolve();
-                    $form.find('input, button').attr('disabled', null);
-                });
-                return false;
-            });
+            $(this).find('input').focus();
         });
+
+        $dialog.data('dialog:mode', dialogMode);
     });
-})
+});
