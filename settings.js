@@ -30,30 +30,31 @@ $(function () {
     $('button#update').click(function () {
         localStorage['urls'] = $('textarea#urls').val();
     });
+});
 
-    with ({ $dialog: $('#import-opml-dialog') }) {
-        var $form = $dialog.find('form');
+$(function () {
+    var $dialog = $('#import-opml-dialog'),
+        $form   = $dialog.find('form');
 
-        $form.find('#opml-import').click(function () {
-            $form.find('input, button').attr('disabled', true);
+    $form.find('#opml-import').click(function () {
+        $form.find('input, button').attr('disabled', true);
 
-            var $opmlURL = $('#opml-url');
-            loadOPML($opmlURL.val()).done(function (urls) {
-                $('#urls').val(function (i, val) {
-                    return _.unique(val.split(/\n/).concat(urls)).join("\n");
-                });
-                $opmlURL.val('');
-                toast('OPML loaded');
-            }).fail(function () {
-                toast('Loading OPML failed');
-            }).always(function () {
-                $dialog.data('dialog:mode').resolve();
-                $form.find('input, button').attr('disabled', null);
+        var $opmlURL = $('#opml-url');
+        loadOPML($opmlURL.val()).done(function (urls) {
+            $('#urls').val(function (i, val) {
+                return _.unique(val.split(/\n/).concat(urls)).join("\n");
             });
-
-            return false;
+            $opmlURL.val('');
+            toast('OPML loaded');
+        }).fail(function () {
+            toast('Loading OPML failed');
+        }).always(function () {
+            $dialog.data('dialog:mode').resolve();
+            $form.find('input, button').attr('disabled', null);
         });
-    }
+
+        return false;
+    });
 })
 
 $(function () {
