@@ -74,8 +74,10 @@ RSS.Entry.prototype = {
     }
 };
 
-function updateFeed (config) {
+function updateFeed (config, options) {
     console.log('updateFeed', config);
+
+    options = options || {};
 
     $.ajax(config.url, { dataType: 'xml' }).done(function (doc) {
         var oldCache = Cache[config.url];
@@ -88,7 +90,7 @@ function updateFeed (config) {
                      : null;
 
         if (!feedType) {
-            console.error('updateFeed', 'unknown feed type', doc);
+            console.error('updateFeed', 'unknown feed type', config.url, doc);
             return;
         }
 
@@ -99,6 +101,8 @@ function updateFeed (config) {
             var id = entry.id();
             newCache[id] = true;
             if (oldCache && oldCache[id]) return;
+
+            if (options.dontNotify) return;
 
             var notification = webkitNotifications.createNotification(
                 entry.image(),
@@ -120,7 +124,7 @@ function updateFeed (config) {
     });
 }
 
-function updateFeeds () {
+function updateFeeds (options) {
     var urls = (localStorage['urls'] || '').split(/\n/);
     $.each(urls, function () {
         var url = ''+this;
@@ -133,11 +137,11 @@ function updateFeeds () {
             feed.title = m[2];
         }
 
-        updateFeed(feed);
+        updateFeed(feed, options);
     });
 }
 
-updateFeeds();
+updateFeeds({ dontNotify: true });
 
 setInterval(function () {
     updateFeeds();
