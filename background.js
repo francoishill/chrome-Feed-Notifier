@@ -1,148 +1,107 @@
-var Cache = {};
+var updateIntervalMinutes = 5;
 
-function Atom ($doc) {
-    this.$doc = $doc;
-}
+var updateInterval = updateIntervalMinutes * 1000 * 60;
+var Cache = localStorage['allCache'] ? JSON.parse(localStorage['allCache']) : {};
 
-Atom.prototype = {
-    title: function () {
-        return this.$doc.find('title:first').text();
-    },
-    entries: function () {
-        return this.$doc.find('entry').map(function () {
-            return new Atom.Entry($(this));
-        });
-    }
-};
+function updateFeed(config, options) {
+  console.log('updateFeed', config);
 
-Atom.Entry = function ($entry) {
-    this.$entry = $entry;
-};
+  options = options || {};
 
-Atom.Entry.prototype = {
-    id: function () {
-        return this.$entry.find('id').text();
-    },
-    url: function () {
-        return this.$entry.find('link').attr('href');
-    },
-    title: function () {
-        return this.$entry.find('title').text();
-    },
-    image: function () {
-        return this.$entry.find('thumbnail').attr('url')
-    }
-};
+  var url = config.url;
+  var dataType = url.length > 0 && url.substring(url.lastIndexOf('.') + 1);
 
-function RSS ($doc) {
-    this.$doc = $doc;
-}
-
-RSS.prototype = {
-    title: function () {
-        return this.$doc.find('channel > title').text();
-    },
-    entries: function () {
-        return this.$doc.find('item').map(function () {
-            return new RSS.Entry($(this));
-        });
-    }
-};
-
-
-RSS.Entry = function ($entry) {
-    this.$entry = $entry;
-}
-
-RSS.Entry.prototype = {
-    id: function () {
-        var $guid = this.$entry.find('guid');
-        if ($guid.length > 0) {
-            return $guid.text();
-        } else {
-            return this.url() + ' ' + this.$entry.find('date, pubDate').text();
-        }
-    },
-    url: function () {
-        return this.$entry.find('link').text();
-    },
-    title: function () {
-        return this.$entry.find('title').text();
-    },
-    image: function () {
-        return null;
-    }
-};
-
-function updateFeed (config, options) {
-    console.log('updateFeed', config);
-
-    options = options || {};
-
-    $.ajax(config.url, { dataType: 'xml' }).done(function (doc) {
-        var oldCache = Cache[config.url];
-        var newCache = Cache[config.url] = {};
+  var promise = new Promise(function (resolve, reject) {
+    $.ajax(url, { dataType: dataType })
+      .done(function (doc) {
+        var oldCache = Cache[url];
+        var newCache = Cache[url] = {};
 
         var $doc = $(doc);
         var feedType = $doc.find('feed:root').length ? Atom
-                     : $doc.find('RDF:root').length  ? RSS
-                     : $doc.find('rss:root').length  ? RSS
-                     : null;
+          : $doc.find('RDF:root').length ? RSS
+          : $doc.find('rss:root').length ? RSS
+          : url.indexOf('coreos.com/releases/releases.json') !== -1 ? CoreOSReleasesJSON
+          : null;
 
         if (!feedType) {
-            console.error('updateFeed', 'unknown feed type', config.url, doc);
-            return;
+          reject('unknown feed type');
+          console.error('updateFeed', 'unknown feed type', url, doc);
+          return;
         }
 
         var feed = new feedType($doc);
         $.each(feed.entries(), function () {
-            var entry = this;
+          var entry = this;
+          // console.log("entry", entry);
 
-            var id = entry.id();
-            newCache[id] = true;
-            if (oldCache && oldCache[id]) return;
+          var id = entry.id();
+          newCache[id] = true;
+          if (oldCache && oldCache[id]) return;
 
-            if (options.dontNotify) return;
+          if (options.dontNotify) return;
 
-            var notification = webkitNotifications.createNotification(
-                entry.image(),
-                config.title || feed.title(),
-                entry.title()
-            );
-            notification.onclick = function () {
-                chrome.tabs.create({ url: entry.url() });
-                notification.close();
-            };
-            notification.onshow = function () {
-                // setTimeout(function () { notification.close() }, 5 * 1000);
-            };
+          var notificationOptions = {
+            iconUrl: entry.image() || 'https://www.iconfinder.com/icons/341106/download/png/48',
+            title: config.title || feed.title(),
+            message: entry.title(),
+            requireInteraction: true, //Since Chrome 50. Indicates that the notification should remain visible on screen until the user activates or dismisses the notification. This defaults to false.
+            isClickable: true,
+            type: 'basic',
+            /*type: 'list',
+            items: [
+                { title: 'Title 1', message: 'Message 1'},
+                { title: 'Title 2', message: 'Message 2'},
+                { title: 'Title 3', message: 'Message 3'},
+            ]*/
+          };
 
-            notification.show();
+          var additionalContext = {
+            entryUrl: entry.url(),
+          };
+
+          showNewNotification(notificationOptions, additionalContext);
         });
-    }).fail(function () {
-        console.error('updateFeed', config);
+
+        resolve({});
+      })
+      .fail(function (err) {
+        console.error('updateFeed', config, err);
+        reject(['updateFeed', config, err]);
+      });
+    });
+
+    return promise;
+}
+
+function updateFeeds(options) {
+  var urls = (localStorage['urls'] || '').split(/\n/);
+  var promises = $.map(urls, function (url) {
+    if (url.length === 0) return;
+
+    var feed = { url: url };
+    var m = feed.url.match(/^([^#]+)#(.+)$/);
+    if (m) {
+      feed.url = m[1];
+      feed.title = m[2];
+    }
+
+    return updateFeed(feed, options);
+  });
+
+  Promise.all(promises)
+    /*.then((results) => {
+      console.log("ALL", results);
+    })*/
+    .catch((err) =>  {
+      console.error("Failure(s)", err);
+    })
+    .then(() => {
+      console.log("All feeds loaded, saving cache");
+      localStorage['allCache'] = JSON.stringify(Cache);
+      setTimeout(updateFeeds, updateInterval);
     });
 }
 
-function updateFeeds (options) {
-    var urls = (localStorage['urls'] || '').split(/\n/);
-    $.each(urls, function () {
-        var url = ''+this;
-        if (this.length === 0) return;
-
-        var feed = { url: url };
-        var m = feed.url.match(/^([^#]+)#(.+)$/);
-        if (m) {
-            feed.url   = m[1];
-            feed.title = m[2];
-        }
-
-        updateFeed(feed, options);
-    });
-}
-
-updateFeeds({ dontNotify: true });
-
-setInterval(function () {
-    updateFeeds();
-}, 5 * 60 * 1000);
+// updateFeeds({ dontNotify: true });
+updateFeeds();

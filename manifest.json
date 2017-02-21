@@ -11,7 +11,13 @@
 
     "background": {
         "scripts": [
-            "jquery-2.0.3.min.js",
+            "bower_components/promise-js/promise.js",
+            "bower_components/jquery/dist/jquery.min.js",
+
+            "notificationManager.js",
+            "feed_atom.js",
+            "feed_rss.js",
+            "feed_coreos_releases_json.js",
             "background.js"
         ]
     },
