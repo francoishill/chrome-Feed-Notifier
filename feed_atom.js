@@ -21,6 +21,9 @@ Atom.Entry.prototype = {
     id: function () {
         return this.$entry.find('id').text();
     },
+    date: function () {
+        return this.$entry.find('id').text();
+    },
     url: function () {
         return this.$entry.find('link').attr('href');
     },

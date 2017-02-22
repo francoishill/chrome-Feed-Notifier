@@ -27,16 +27,19 @@ CoreOSReleasesJSON.Entry.prototype = {
     url: function () {
         return 'https://coreos.com/releases/#' + this.$entry.version_number;
     },
+    date: function() {
+        return this.$entry.release_date;
+    },
     title: function () {
         var fields = [
-            { field: 'Date', value: this.$entry.release_date },
+            // { field: 'Date', value: this.$entry.release_date }, // date already returned above
             { field: 'Kernel', value: this.$entry.major_software.kernel },
             { field: 'Docker', value: this.$entry.major_software.docker },
             { field: 'Etcd', value: this.$entry.major_software.etcd },
             { field: 'Fleet', value: this.$entry.major_software.fleet },
         ]
-        var combinedFields = fields.map(f => f.field + ': ' + f.value).join(', ');
-        return 'CoreOS version ' + this.$entry.version_number + '. ' + combinedFields;
+        var combinedFields = fields.map(f => f.field + ': ' + f.value).join('\n');
+        return 'CoreOS version ' + this.$entry.version_number + '\n' + combinedFields;
     },
     image: function () {
         return 'https://coreos.com/assets/ico/favicon.png';

@@ -9,7 +9,15 @@ function updateFeed(config, options) {
   options = options || {};
 
   var url = config.url;
-  var dataType = url.length > 0 && url.substring(url.lastIndexOf('.') + 1);
+  if (url.length <= 0) {
+    return Promise.reject('URL length is 0');
+  }
+  var dataType = url.substring(url.lastIndexOf('.') + 1);
+
+  if (url.length > 4 && url.toLowerCase().substring(url.length - 4) == '/rss') {
+    dataType = 'xml';    
+  }
+  console.log('dataType:', dataType, ', url:', url);
 
   var promise = new Promise(function (resolve, reject) {
     $.ajax(url, { dataType: dataType })
@@ -43,8 +51,8 @@ function updateFeed(config, options) {
 
           var notificationOptions = {
             iconUrl: entry.image() || 'https://www.iconfinder.com/icons/341106/download/png/48',
-            title: config.title || feed.title(),
-            message: entry.title(),
+            title: (config.title || feed.title()),
+            message: 'Date: ' + entry.date() + '\n' + entry.title(),
             requireInteraction: true, //Since Chrome 50. Indicates that the notification should remain visible on screen until the user activates or dismisses the notification. This defaults to false.
             isClickable: true,
             type: 'basic',

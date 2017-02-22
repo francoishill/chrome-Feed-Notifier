@@ -27,6 +27,9 @@ RSS.Entry.prototype = {
             return this.url() + ' ' + this.$entry.find('date, pubDate').text();
         }
     },
+    date: function() {
+        return this.$entry.find('date, pubDate').text();
+    },
     url: function () {
         return this.$entry.find('link').text();
     },
